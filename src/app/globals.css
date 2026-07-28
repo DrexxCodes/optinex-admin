@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* This is a local-only internal tool, so we skip bundling custom webfonts —
+     these system-font stacks are what the Tailwind config's `display`/`body`
+     font families resolve to. */
+  --font-sora: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-inter: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+::selection {
+  background: #1c54f5;
+  color: #fff;
+}
