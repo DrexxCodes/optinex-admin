@@ -82,10 +82,14 @@ export async function GET() {
     pendingWithdrawalTotal,
     packages,
     signups,
+    // "Financial Stats" is real revenue only — money confirmed the moment an
+    // admin approves a submitted investment/upgrade receipt — not the
+    // blended amountTotal (which also holds reward payouts, unverified
+    // submissions, withdrawals, and casino scores).
     financial: {
-      daily: { label: dayIds[dayIds.length - 1], amountTotal: todayEntry?.amountTotal ?? 0, total: todayEntry?.total ?? 0 },
-      monthly: { label: monthId, amountTotal: monthly?.amountTotal ?? 0, total: monthly?.total ?? 0 },
-      yearly: { label: yearId, amountTotal: yearly?.amountTotal ?? 0, total: yearly?.total ?? 0 }
+      daily: { label: dayIds[dayIds.length - 1], amountTotal: todayEntry?.revenueTotal ?? 0, total: todayEntry?.revenueEvents ?? 0 },
+      monthly: { label: monthId, amountTotal: monthly?.revenueTotal ?? 0, total: monthly?.revenueEvents ?? 0 },
+      yearly: { label: yearId, amountTotal: yearly?.revenueTotal ?? 0, total: yearly?.revenueEvents ?? 0 }
     }
   });
 }

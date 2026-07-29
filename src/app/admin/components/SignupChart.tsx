@@ -24,7 +24,7 @@ export default function SignupChart({ signups }: { signups: SignupPoint[] }) {
 
       <div className="mt-4 h-52">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="signupFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#1C54F5" stopOpacity={0.35} />
@@ -32,8 +32,15 @@ export default function SignupChart({ signups }: { signups: SignupPoint[] }) {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EDEEF7" />
-            <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8A8DA6' }} axisLine={false} tickLine={false} />
-            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#8A8DA6' }} axisLine={false} tickLine={false} width={30} />
+            <XAxis
+              dataKey="label"
+              interval={0}
+              padding={{ left: 16, right: 16 }}
+              tick={{ fontSize: 12, fill: '#8A8DA6' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#8A8DA6' }} axisLine={false} tickLine={false} width={28} />
             <Tooltip
               contentStyle={{ borderRadius: 12, border: '1px solid #EDEEF7', fontSize: 12 }}
               labelStyle={{ fontWeight: 600 }}
