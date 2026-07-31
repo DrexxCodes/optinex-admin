@@ -57,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       packageStatus: investment.packageName,
       packageId: investment.packageId,
       packageName: investment.packageName,
+      packageStartedAt: Date.now(),
       packageExpiresAt: expiresAt,
       isChangingPackage: false
     };
