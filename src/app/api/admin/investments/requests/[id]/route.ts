@@ -4,23 +4,16 @@ import { requireAdmin } from '@/lib/auth/adminGuard';
 import { logAnalyticsEvent } from '@/lib/analytics';
 
 function parseDurationToMs(duration: string): number {
-  // Parse formats like "30 days", "3 months", "1 year"
-  const match = duration.match(/(\d+)\s*(day|month|year)s?/i);
-  if (!match) return 30 * 24 * 60 * 60 * 1000; // default 30 days
-
-  const value = parseInt(match[1], 10);
-  const unit = match[2].toLowerCase();
-
-  switch (unit) {
-    case 'day':
-      return value * 24 * 60 * 60 * 1000;
-    case 'month':
-      return value * 30 * 24 * 60 * 60 * 1000; // approximate
-    case 'year':
-      return value * 365 * 24 * 60 * 60 * 1000;
-    default:
-      return 30 * 24 * 60 * 60 * 1000;
-  }
+  // The `duration` field on a package is free text (e.g. "30 days", "30",
+  // "30d") but the number in it always means days — there's no separate
+  // months/years convention in this app. Pull out the first number we find
+  // and treat it as a day count, instead of requiring a matching unit word
+  // (the old regex silently fell back to a hardcoded 30 days whenever the
+  // admin typed the duration without a "day/month/year" suffix, which
+  // quietly gave every such package the wrong expiry).
+  const match = duration.match(/\d+/);
+  const days = match ? parseInt(match[0], 10) : 30; // default 30 days if nothing parseable
+  return days * 24 * 60 * 60 * 1000;
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
