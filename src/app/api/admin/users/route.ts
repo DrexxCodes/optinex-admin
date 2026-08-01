@@ -2,19 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
 
-// Looks a single user up by exact email — a single indexed-equality query
-// instead of pulling a page of users and filtering client-side. Cheap at
-// any scale since it's always at most one document read.
+// Looks a single user up by exact email or exact username — a single
+// indexed-equality query instead of pulling a page of users and filtering
+// client-side. Cheap at any scale since it's always at most one document read.
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
-  const email = searchParams.get('email')?.trim().toLowerCase();
-  if (!email) return NextResponse.json({ error: 'Provide an email to search for.' }, { status: 400 });
+  const query = (searchParams.get('email') ?? searchParams.get('username') ?? searchParams.get('q'))?.trim();
+  if (!query) return NextResponse.json({ error: 'Provide an email or username to search for.' }, { status: 400 });
 
-  const snap = await adminDb.collection('users').where('email', '==', email).limit(1).get();
-  if (snap.empty) return NextResponse.json({ error: 'No user found with that email.' }, { status: 404 });
+  // An email always contains "@"; anything else is treated as a username.
+  const isEmail = query.includes('@');
+  const field = isEmail ? 'email' : 'username';
+  const value = query.toLowerCase();
+
+  const snap = await adminDb.collection('users').where(field, '==', value).limit(1).get();
+  if (snap.empty) {
+    return NextResponse.json({ error: `No user found with that ${field}.` }, { status: 404 });
+  }
 
   const doc = snap.docs[0];
   const u = doc.data();

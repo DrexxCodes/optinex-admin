@@ -24,8 +24,8 @@ export default function UserSearchInput({
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          type="email"
-          placeholder="Search by user email…"
+          type="text"
+          placeholder="Search by email or username…"
           className="w-full rounded-xl border border-ink/10 bg-white py-2.5 pl-10 pr-4 text-sm text-ink outline-none focus:border-brand-500"
         />
       </div>

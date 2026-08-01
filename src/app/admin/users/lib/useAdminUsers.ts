@@ -70,14 +70,14 @@ export function useAdminUsers() {
   }, [user, txnsCursor, txnsLoadingMore]);
 
   const search = useCallback(async () => {
-    const email = query.trim().toLowerCase();
-    if (!email) return;
+    const term = query.trim();
+    if (!term) return;
     setSearching(true);
     setSearchError(null);
     setUser(null);
     setTransactions([]);
     try {
-      const res = await authFetch(`/api/admin/users?email=${encodeURIComponent(email)}`);
+      const res = await authFetch(`/api/admin/users?q=${encodeURIComponent(term)}`);
       const data = await res.json();
       if (!res.ok) {
         setSearchError(data.error ?? 'Could not find that user.');
