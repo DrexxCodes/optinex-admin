@@ -67,7 +67,12 @@ export async function GET() {
   );
 
   const entriesByDate = new Map(dailyEntriesSnap.docs.map((d) => [d.data().date as string, d.data()]));
-  const signups = dayIds.map((date) => ({ date, signups: entriesByDate.get(date)?.counts?.signup ?? 0 }));
+  // `logAnalyticsEvent` writes this via `{ [`counts.${action}`]: increment(1) }` through
+  // `.set(ref, payload, { merge: true })`. Firestore only parses dotted field paths for
+  // `update()` — a dotted *string key* passed to `set()` (even with merge: true) is stored
+  // as one literal field literally named "counts.signup", not a nested `counts: { signup }`
+  // map. So the read has to use the same literal bracket key, not `.counts?.signup`.
+  const signups = dayIds.map((date) => ({ date, signups: entriesByDate.get(date)?.['counts.signup'] ?? 0 }));
 
   const monthly = monthlyEntrySnap.exists ? monthlyEntrySnap.data()! : null;
   const yearly = yearlyEntrySnap.exists ? yearlyEntrySnap.data()! : null;

@@ -2,43 +2,47 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { authFetch } from '@/lib/auth/authClient';
+import type { CasinoGameId } from '@/lib/redis';
 
 export type LeaderboardEntry = { rank: number; uid: string; username: string; score: number };
 
-export function useAdminLeaderboard() {
+const PAGE_SIZE = 10;
+
+// One page (10 rows) per request, for whichever game tab is active. Paging
+// forward asks Upstash for the next 10 ranks directly (via `offset`) rather
+// than ever pulling a large top-N list — see api/admin/leaderboard/route.ts.
+export function useAdminLeaderboard(gameId: CasinoGameId) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [resetting, setResetting] = useState(false);
-  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await authFetch('/api/admin/leaderboard');
-    if (res.ok) setEntries((await res.json()).entries);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const resetLeaderboard = useCallback(async () => {
-    setResetting(true);
-    setResetMessage(null);
-    try {
-      const res = await authFetch('/api/admin/leaderboard/reset', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        setResetMessage(data.error ?? 'Could not reset the leaderboard.');
-        return false;
+  const loadPage = useCallback(
+    async (pageOffset: number, append: boolean) => {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      try {
+        const res = await authFetch(`/api/admin/leaderboard?game=${gameId}&offset=${pageOffset}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEntries((prev) => (append ? [...prev, ...data.entries] : data.entries));
+        setHasMore(data.hasMore);
+        setOffset(pageOffset);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
       }
-      setEntries([]);
-      setResetMessage(`Leaderboard reset — ${data.clearedCount} score${data.clearedCount === 1 ? '' : 's'} cleared.`);
-      return true;
-    } finally {
-      setResetting(false);
-    }
-  }, []);
+    },
+    [gameId]
+  );
 
-  return { entries, loading, resetting, resetMessage, resetLeaderboard, refresh: load };
+  // Switching game tabs resets to the first page.
+  useEffect(() => {
+    loadPage(0, false);
+  }, [loadPage]);
+
+  const loadNextPage = useCallback(() => loadPage(offset + PAGE_SIZE, true), [loadPage, offset]);
+
+  return { entries, loading, loadingMore, hasMore, loadNextPage };
 }

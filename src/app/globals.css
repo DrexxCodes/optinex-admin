@@ -14,3 +14,13 @@
   background: #1c54f5;
   color: #fff;
 }
+
+/* Used by the mobile admin nav so the horizontally-scrollable icon row
+   doesn't show a visible scrollbar under the fixed logo. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
