@@ -10,6 +10,7 @@ export type FinancialPeriod = { label: string; amountTotal: number; total: numbe
 export type AdminOverview = {
   totalUsers: number;
   freeUsers: number;
+  upgradedUsers: number;
   pendingUpgrades: number;
   pendingInvestments: number;
   pendingWithdrawals: number;

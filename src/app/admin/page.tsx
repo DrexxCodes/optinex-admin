@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Users, ChevronsUp, TrendingUp, Wallet } from 'lucide-react';
+import { Users, UserCheck, ChevronsUp, TrendingUp, Wallet } from 'lucide-react';
 import { useAdminOverview } from './lib/useAdminOverview';
 import StatCard from './components/StatCard';
 import SignupChart from './components/SignupChart';
@@ -16,8 +16,8 @@ export default function AdminOverviewPage() {
       <p className="mt-1 text-sm text-ink/60">A quick look at what needs your attention.</p>
 
       {loading && (
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-28 animate-pulse rounded-2xl bg-white/60" />
           ))}
         </div>
@@ -25,8 +25,9 @@ export default function AdminOverviewPage() {
 
       {!loading && data && (
         <>
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
             <StatCard label="Total Users" value={data.totalUsers} icon={Users} />
+            <StatCard label="Total Upgraded" value={data.upgradedUsers} icon={UserCheck} tone="emerald" />
             <StatCard label="Pending Upgrades" value={data.pendingUpgrades} icon={ChevronsUp} tone="amber" />
             <StatCard label="Pending Investments" value={data.pendingInvestments} icon={TrendingUp} tone="amber" />
             <StatCard label="Pending Withdrawals" value={`₦${data.pendingWithdrawalTotal.toLocaleString()}`} icon={Wallet} tone="red" />

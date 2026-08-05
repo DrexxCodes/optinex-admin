@@ -39,6 +39,7 @@ export async function GET() {
     pendingWithdrawalsSnap,
     packagesSnap,
     freeUsersCount,
+    upgradedUsersCount,
     dailyEntriesSnap,
     monthlyEntrySnap,
     yearlyEntrySnap
@@ -49,6 +50,11 @@ export async function GET() {
     adminDb.collection('withdrawals').where('status', '==', 'pending').get(),
     adminDb.collection('packages').orderBy('price', 'asc').get(),
     usersCol.where('packageStatus', '==', 'Free').count().get(),
+    // Currently-upgraded accounts (accountTier flips to 'upgraded' once an
+    // admin approves an account_upgrade_verified submission) — not a
+    // point-in-time analytics count, so this reads live off the users
+    // collection rather than the daily/monthly/yearly analytics docs below.
+    usersCol.where('accountTier', '==', 'upgraded').count().get(),
     adminDb.collection('analytics').doc('daily').collection('entries').where('date', 'in', dayIds).get(),
     adminDb.collection('analytics').doc('monthly').collection('entries').doc(monthId).get(),
     adminDb.collection('analytics').doc('yearly').collection('entries').doc(yearId).get()
@@ -81,6 +87,7 @@ export async function GET() {
   return NextResponse.json({
     totalUsers: totalUsersCount.data().count,
     freeUsers: freeUsersCount.data().count,
+    upgradedUsers: upgradedUsersCount.data().count,
     pendingUpgrades: pendingUpgradesSnap.size,
     pendingInvestments: pendingInvestmentsSnap.size,
     pendingWithdrawals: pendingWithdrawalsSnap.size,
