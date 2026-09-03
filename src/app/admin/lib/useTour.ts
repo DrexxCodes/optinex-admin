@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const SEEN_KEY = 'optinex-admin-tour-seen';
+const SEEN_KEY = 'Incossify-admin-tour-seen';
 
 export function useTour() {
   const [open, setOpen] = useState(false);

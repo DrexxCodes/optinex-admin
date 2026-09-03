@@ -11,7 +11,7 @@ export type AccessTokenPayload = {
 };
 
 const ACCESS_TOKEN_TTL = '15m';
-const AUDIENCE = 'optinex-user';
+const AUDIENCE = 'Incossify-user';
 
 function accessSecret() {
   return new TextEncoder().encode(process.env.JWT_ACCESS_SECRET);

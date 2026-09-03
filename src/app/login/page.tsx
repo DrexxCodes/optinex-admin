@@ -41,9 +41,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[#0B1120] px-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl">
-        <Image src="/logo.png" alt="Optinex Africa" width={44} height={44} priority className="h-11 w-11 rounded-2xl object-cover" />
-        <h1 className="mt-3 font-display text-xl font-bold text-ink">Optinex Admin</h1>
-        <p className="mt-1 text-sm text-ink/50">Sign in with your Optinex account. Local use only.</p>
+        <Image src="/logo.png" alt="Incossify Africa" width={44} height={44} priority className="h-11 w-11 rounded-2xl object-cover" />
+        <h1 className="mt-3 font-display text-xl font-bold text-ink">Incossify Admin</h1>
+        <p className="mt-1 text-sm text-ink/50">Sign in with your Incossify account. Local use only.</p>
 
         <form onSubmit={onSubmit} className="mt-5 space-y-3">
           <label className="block">
@@ -81,7 +81,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-5 text-center text-xs text-ink/40">
-          Not an admin yet? Signing in with any valid Optinex account here will set it up as one.
+          Not an admin yet? Signing in with any valid Incossify account here will set it up as one.
         </p>
       </div>
     </div>

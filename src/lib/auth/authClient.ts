@@ -1,7 +1,7 @@
 'use client';
 
 // Client-side auth pattern: never rely on onAuthStateChanged for app state —
-// the httpOnly `optinex_at` cookie is the single source of truth. This module
+// the httpOnly `Incossify_at` cookie is the single source of truth. This module
 // centralizes the "call API, retry once after a silent refresh" behavior.
 
 let refreshPromise: Promise<boolean> | null = null;

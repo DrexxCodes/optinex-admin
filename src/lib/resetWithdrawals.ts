@@ -2,7 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/admin';
 
 // Voids every pending withdrawal request. The wallet was already debited
-// when the request was made (see optinex-user's api/withdrawal/request
+// when the request was made (see Incossify-user's api/withdrawal/request
 // route), so voiding it must refund that amount back — otherwise the money
 // just vanishes. Marked 'reset' (not 'failed') so it's distinguishable from
 // an admin-rejected request in any future audit.

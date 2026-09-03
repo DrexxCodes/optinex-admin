@@ -3,8 +3,8 @@ import './globals.css';
 import RouteLoader from '@/components/RouteLoader';
 
 export const metadata: Metadata = {
-  title: 'Optinex Admin',
-  description: 'Local-only admin portal for Optinex Africa. Not deployed publicly.'
+  title: 'Incossify Admin',
+  description: 'Local-only admin portal for Incossify Africa. Not deployed publicly.'
 };
 
 export const viewport: Viewport = {

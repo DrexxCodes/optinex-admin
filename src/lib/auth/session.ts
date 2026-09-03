@@ -3,8 +3,8 @@
 import { cookies } from 'next/headers';
 import { verifyAccessToken, type AccessTokenPayload } from './jwt';
 
-export const ACCESS_COOKIE = 'optinex_at';
-export const REFRESH_COOKIE = 'optinex_rt';
+export const ACCESS_COOKIE = 'Incossify_at';
+export const REFRESH_COOKIE = 'Incossify_rt';
 
 export async function getSessionUser(): Promise<AccessTokenPayload | null> {
   const jar = await cookies();

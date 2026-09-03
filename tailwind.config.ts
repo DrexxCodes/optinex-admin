@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Optinex Africa — Blue & White palette
+        // Incossify Africa — Blue & White palette
         ink: '#0A1F3C',        // deep navy — headings, primary text
         brand: {
           50: '#EAF1FF',

@@ -22,9 +22,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           {/* Logo: stays fixed in place; its opaque background masks the nav
               row scrolling underneath it on mobile. */}
           <div className="relative z-20 flex shrink-0 items-center gap-2.5 bg-[#0B1120] pr-4 lg:bg-transparent lg:pr-0">
-            <Image src="/logo.png" alt="Optinex Africa" width={32} height={32} priority className="h-8 w-8 shrink-0 rounded-xl object-cover" />
+            <Image src="/logo.png" alt="Incossify Africa" width={32} height={32} priority className="h-8 w-8 shrink-0 rounded-xl object-cover" />
             <div className="hidden lg:block">
-              <p className="font-display text-sm font-bold text-white">Optinex Admin</p>
+              <p className="font-display text-sm font-bold text-white">Incossify Admin</p>
             </div>
           </div>
 

@@ -59,7 +59,7 @@ export default function BankSettingsForm({
           <input
             value={form.accountName}
             onChange={set('accountName')}
-            placeholder="Optinex Africa Ltd"
+            placeholder="Incossify Africa Ltd"
             className="w-full rounded-xl border border-ink/10 bg-ink/[0.02] px-4 py-2.5 text-sm text-ink outline-none focus:border-brand-500"
           />
         </label>

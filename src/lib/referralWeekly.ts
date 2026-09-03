@@ -4,7 +4,7 @@ import { redis, REFERRAL_LEADERBOARD_KEY, REFERRAL_WEEKLY_LEADERBOARD_KEY, REFER
 
 // ₦ credited per successful referral, for the admin Referrals leaderboard
 // only. Independent of the real wallet bonus paid at signup time (currently
-// ₦2,000 — see optinex-user's `/api/auth/signup` route) — this is the flat
+// ₦2,000 — see Incossify-user's `/api/auth/signup` route) — this is the flat
 // rate the leaderboard uses to turn a referral count into a naira figure.
 export const REFERRAL_INCOME_RATE = 1000;
 
@@ -37,7 +37,7 @@ function parseFlatScored(flat: (string | number)[]): { member: string; score: nu
 // REFERRAL_LEADERBOARD_KEY zset the user app already maintains.
 //
 // Firestore's `weeklyReferrals`/`allTimeReferrals` fields (written by
-// optinex-user's signup route) remain the source of truth — Redis here is
+// Incossify-user's signup route) remain the source of truth — Redis here is
 // purely a read cache, same tradeoff already accepted for the user-facing
 // leaderboard's referral counts and name cache. A dropped Redis write would
 // mean this board briefly under-counts someone; it self-corrects on their
@@ -84,7 +84,7 @@ export async function getReferralLeaderboard(): Promise<ReferralLeaderboardEntry
     for (const snap of snaps) {
       if (!snap.exists) continue;
       const d = snap.data()!;
-      fetchedNames.set(snap.id, { fullName: d.fullName ?? 'Optinex user', username: d.username ?? '' });
+      fetchedNames.set(snap.id, { fullName: d.fullName ?? 'Incossify user', username: d.username ?? '' });
     }
     if (fetchedNames.size > 0) {
       try {
@@ -98,7 +98,7 @@ export async function getReferralLeaderboard(): Promise<ReferralLeaderboardEntry
   }
 
   return top.map((entry, i) => {
-    let fullName = 'Optinex user';
+    let fullName = 'Incossify user';
     let username = '';
     const raw = names?.[entry.member];
     if (raw) {

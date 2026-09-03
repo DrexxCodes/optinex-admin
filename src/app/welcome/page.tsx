@@ -41,7 +41,7 @@ export default function WelcomePage() {
             </span>
             <h1 className="mt-4 font-display text-xl font-bold text-ink">Welcome, Admin{fullName ? `, ${fullName.split(' ')[0]}` : ''}!</h1>
             <p className="mt-2 text-sm text-ink/60">
-              Your account now has admin access to Optinex. You can manage upgrades, investments, withdrawals, notifications, and users
+              Your account now has admin access to Incossify. You can manage upgrades, investments, withdrawals, notifications, and users
               from here.
             </p>
             <button

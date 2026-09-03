@@ -1,6 +1,6 @@
 // Upstash Redis — same instance/keys as the user app's casino leaderboards.
 // Needed here so the admin app can read and reset them. Keep this in sync
-// with optinex-user's src/lib/redis.ts by hand (separate deployments,
+// with Incossify-user's src/lib/redis.ts by hand (separate deployments,
 // same Upstash instance/keys — there's no shared package between the two apps).
 import { Redis } from '@upstash/redis';
 
