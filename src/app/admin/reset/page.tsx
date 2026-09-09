@@ -4,9 +4,10 @@ import { AlertTriangle, DollarSign, CalendarCheck, UserPlus, Users2, Wallet } fr
 import { useAdminReset } from './lib/useAdminReset';
 import ResetCategoryCard from './components/ResetCategoryCard';
 import GameResetPicker from './components/GameResetPicker';
+import NukeUsersCard from './components/NukeUsersCard';
 
 export default function AdminResetPage() {
-  const { reset, resetting, result, resetLog, loadingLog } = useAdminReset();
+  const { reset, resetting, result, resetLog, loadingLog, nukeUsers, nuking, nukeResult } = useAdminReset();
 
   return (
     <div>
@@ -78,6 +79,15 @@ export default function AdminResetPage() {
               onReset={(gameId) => reset('game', gameId)}
             />
           )}
+        </div>
+      )}
+
+      {!loadingLog && resetLog && (
+        <div className="mt-8">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-500/70">Danger zone</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <NukeUsersCard lastReset={resetLog.nuke} nuking={nuking} nukeResult={nukeResult} onNuke={nukeUsers} />
+          </div>
         </div>
       )}
     </div>

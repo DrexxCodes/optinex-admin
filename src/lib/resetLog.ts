@@ -4,7 +4,7 @@ import { CASINO_GAME_IDS, type CasinoGameId } from '@/lib/redis';
 
 const resetLogRef = adminDb.collection('system').doc('resetLog');
 
-export type ResetLogCategory = 'financial' | 'checkin' | 'signup' | 'referral' | 'withdrawals';
+export type ResetLogCategory = 'financial' | 'checkin' | 'signup' | 'referral' | 'withdrawals' | 'nuke';
 
 // Records "this got reset just now". Uses a real nested object for the
 // per-game case (`{ game: { [gameId]: now } }`) rather than a dotted string
@@ -26,6 +26,7 @@ export type ResetLog = {
   signup: string | null;
   referral: string | null;
   withdrawals: string | null;
+  nuke: string | null;
   game: Record<CasinoGameId | 'all', string | null>;
 };
 
@@ -48,6 +49,7 @@ export async function getResetLog(): Promise<ResetLog> {
     signup: toIso(data.signup),
     referral: toIso(data.referral),
     withdrawals: toIso(data.withdrawals),
+    nuke: toIso(data.nuke),
     game
   };
 }

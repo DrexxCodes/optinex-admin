@@ -12,7 +12,16 @@ export type ResetLog = {
   signup: string | null;
   referral: string | null;
   withdrawals: string | null;
+  nuke: string | null;
   game: Record<CasinoGameId | 'all', string | null>;
+};
+
+export type NukeResult = {
+  ok: boolean;
+  error?: string;
+  usersDeleted?: number;
+  adminsPreserved?: number;
+  authUsersDeleted?: number;
 };
 
 export function useAdminReset() {
@@ -50,5 +59,28 @@ export function useAdminReset() {
     }
   }, []);
 
-  return { reset, resetting, result, resetLog, loadingLog };
+  const [nuking, setNuking] = useState(false);
+  const [nukeResult, setNukeResult] = useState<NukeResult | null>(null);
+
+  const nukeUsers = useCallback(async () => {
+    setNuking(true);
+    setNukeResult(null);
+    try {
+      const res = await authFetch('/api/admin/reset/nuke', {
+        method: 'POST',
+        body: JSON.stringify({ confirm: 'DELETE EVERYTHING' })
+      });
+      const data = await res.json();
+      setNukeResult({ ok: res.ok, error: data.error, usersDeleted: data.usersDeleted, adminsPreserved: data.adminsPreserved, authUsersDeleted: data.authUsersDeleted });
+      if (res.ok && data.resetLog) setResetLog(data.resetLog);
+      return res.ok;
+    } catch {
+      setNukeResult({ ok: false, error: 'Something went wrong. Check your connection and try again.' });
+      return false;
+    } finally {
+      setNuking(false);
+    }
+  }, []);
+
+  return { reset, resetting, result, resetLog, loadingLog, nukeUsers, nuking, nukeResult };
 }
