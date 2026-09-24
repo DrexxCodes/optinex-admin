@@ -14,6 +14,9 @@ export default function AdminUsersPage() {
     search,
     toggleAdmin,
     creditWallet,
+    subscriptions,
+    subsLoading,
+    revokeSubscription,
     transactions,
     txnsLoading,
     txnsLoadingMore,
@@ -24,7 +27,7 @@ export default function AdminUsersPage() {
   return (
     <div>
       <h1 className="font-display text-xl font-bold text-ink">Users</h1>
-      <p className="mt-1 text-sm text-ink/60">Search for a user by email or username to view their details, fund their wallet, or review their transactions.</p>
+      <p className="mt-1 text-sm text-ink/60">Search for a user by email or username to view their details, manage their packages and upgrades, fund their wallet, or review their transactions.</p>
 
       <div className="mt-5">
         <UserSearchInput value={query} onChange={setQuery} onSearch={search} searching={searching} />
@@ -37,6 +40,9 @@ export default function AdminUsersPage() {
           user={user}
           onToggleAdmin={toggleAdmin}
           onCredit={creditWallet}
+          subscriptions={subscriptions}
+          subsLoading={subsLoading}
+          onRevokeSubscription={revokeSubscription}
           transactions={transactions}
           txnsLoading={txnsLoading}
           txnsLoadingMore={txnsLoadingMore}

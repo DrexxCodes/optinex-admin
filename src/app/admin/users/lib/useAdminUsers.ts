@@ -24,6 +24,26 @@ export type AdminUserTransaction = {
   timestamp: string | null;
 };
 
+export type SubscriptionStatus = 'pending' | 'active' | 'failed' | 'revoked';
+
+// One row per package investment or account upgrade the user has ever bought.
+// `current` = it's what's live on the profile right now (for a package: the
+// user's current package; for an upgrade: an active upgrade).
+export type AdminUserSubscription = {
+  id: string;
+  kind: 'package' | 'upgrade';
+  name: string;
+  amount: number;
+  reference: string;
+  receiptUrl: string;
+  status: SubscriptionStatus;
+  current: boolean;
+  startedAt: string | null;
+  expiresAt: string | null;
+  expired: boolean;
+  createdAt: string | null;
+};
+
 const PAGE_SIZE = 20;
 
 export function useAdminUsers() {
@@ -37,6 +57,19 @@ export function useAdminUsers() {
   const [txnsLoadingMore, setTxnsLoadingMore] = useState(false);
   const [txnsHasMore, setTxnsHasMore] = useState(false);
   const [txnsCursor, setTxnsCursor] = useState<string | null>(null);
+
+  const [subscriptions, setSubscriptions] = useState<AdminUserSubscription[]>([]);
+  const [subsLoading, setSubsLoading] = useState(false);
+
+  const loadSubscriptions = useCallback(async (uid: string) => {
+    setSubsLoading(true);
+    try {
+      const res = await authFetch(`/api/admin/users/${uid}/subscriptions`);
+      if (res.ok) setSubscriptions((await res.json()).subscriptions);
+    } finally {
+      setSubsLoading(false);
+    }
+  }, []);
 
   const loadTransactions = useCallback(async (uid: string) => {
     setTxnsLoading(true);
@@ -76,6 +109,7 @@ export function useAdminUsers() {
     setSearchError(null);
     setUser(null);
     setTransactions([]);
+    setSubscriptions([]);
     try {
       const res = await authFetch(`/api/admin/users?q=${encodeURIComponent(term)}`);
       const data = await res.json();
@@ -84,11 +118,11 @@ export function useAdminUsers() {
         return;
       }
       setUser(data.user);
-      await loadTransactions(data.user.uid);
+      await Promise.all([loadTransactions(data.user.uid), loadSubscriptions(data.user.uid)]);
     } finally {
       setSearching(false);
     }
-  }, [query, loadTransactions]);
+  }, [query, loadTransactions, loadSubscriptions]);
 
   const toggleAdmin = useCallback(async (uid: string, makeAdmin: boolean) => {
     const res = await authFetch(`/api/admin/users/${uid}`, { method: 'PATCH', body: JSON.stringify({ admin: makeAdmin }) });
@@ -109,6 +143,29 @@ export function useAdminUsers() {
     [user, loadTransactions]
   );
 
+  // Cancels an upgrade / revokes a package. The API returns the user's new
+  // packageStatus (package) or accountTier (upgrade) so the header badge
+  // updates without re-searching; the list is then reloaded from the server.
+  const revokeSubscription = useCallback(
+    async (sub: AdminUserSubscription) => {
+      if (!user) return { ok: false, error: 'No user selected.' };
+      const res = await authFetch(`/api/admin/users/${user.uid}/subscriptions/${sub.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ kind: sub.kind })
+      });
+      const data = await res.json();
+      if (!res.ok) return { ok: false, error: data.error ?? 'Could not revoke that subscription.' };
+      setUser((prev) =>
+        prev && prev.uid === user.uid
+          ? { ...prev, packageStatus: data.packageStatus ?? prev.packageStatus, accountTier: data.accountTier ?? prev.accountTier }
+          : prev
+      );
+      await loadSubscriptions(user.uid);
+      return { ok: true };
+    },
+    [user, loadSubscriptions]
+  );
+
   return {
     query,
     setQuery,
@@ -118,6 +175,9 @@ export function useAdminUsers() {
     search,
     toggleAdmin,
     creditWallet,
+    subscriptions,
+    subsLoading,
+    revokeSubscription,
     transactions,
     txnsLoading,
     txnsLoadingMore,

@@ -2,14 +2,18 @@
 
 import { useState } from 'react';
 import { ShieldCheck, Shield } from 'lucide-react';
-import type { AdminUser, AdminUserTransaction } from '../lib/useAdminUsers';
+import type { AdminUser, AdminUserSubscription, AdminUserTransaction } from '../lib/useAdminUsers';
 import WalletTopUpForm from './WalletTopUpForm';
 import AdminTransactionRow from './AdminTransactionRow';
+import UserSubscriptions from './UserSubscriptions';
 
 export default function UserDetail({
   user,
   onToggleAdmin,
   onCredit,
+  subscriptions,
+  subsLoading,
+  onRevokeSubscription,
   transactions,
   txnsLoading,
   txnsLoadingMore,
@@ -19,6 +23,9 @@ export default function UserDetail({
   user: AdminUser;
   onToggleAdmin: (uid: string, makeAdmin: boolean) => Promise<boolean>;
   onCredit: (amount: number, note: string) => Promise<{ ok: boolean; error?: string }>;
+  subscriptions: AdminUserSubscription[];
+  subsLoading: boolean;
+  onRevokeSubscription: (sub: AdminUserSubscription) => Promise<{ ok: boolean; error?: string }>;
   transactions: AdminUserTransaction[];
   txnsLoading: boolean;
   txnsLoadingMore: boolean;
@@ -80,6 +87,8 @@ export default function UserDetail({
           <WalletTopUpForm onCredit={onCredit} />
         </div>
       </div>
+
+      <UserSubscriptions subscriptions={subscriptions} loading={subsLoading} onRevoke={onRevokeSubscription} />
 
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <h3 className="font-display text-sm font-bold text-ink">Transaction History</h3>
