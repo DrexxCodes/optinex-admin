@@ -1,34 +1,29 @@
-// Server-side session helpers. `getSessionUser()` is the single source of
-// truth for "who is logged in" on the server — never trust client state.
-import { cookies } from 'next/headers';
-import { verifyAccessToken, type AccessTokenPayload } from './jwt';
+// Server-side session helper. `getSessionUser()` is the single source of truth for
+// "who is logged in" on the server — never trust client state. The session itself is a
+// Supabase Auth session; its JWT is verified locally (no network call) via getClaims().
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-export const ACCESS_COOKIE = 'Incossify_at';
-export const REFRESH_COOKIE = 'Incossify_rt';
+export type SessionUser = {
+  uid: string;
+  email: string;
+  username: string;
+  deviceId: string;
+};
 
-export async function getSessionUser(): Promise<AccessTokenPayload | null> {
-  const jar = await cookies();
-  const token = jar.get(ACCESS_COOKIE)?.value;
-  if (!token) return null;
-  return verifyAccessToken(token);
-}
+// Kept so existing imports of the old JWT payload type keep compiling.
+export type AccessTokenPayload = SessionUser;
 
-export function accessCookieOptions() {
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (error || !claims?.sub) return null;
+
+  const meta = (claims.user_metadata ?? {}) as { username?: string };
   return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    path: '/',
-    maxAge: 60 * 15 // 15 minutes, mirrors access token TTL
-  };
-}
-
-export function refreshCookieOptions() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30 // 30 days
+    uid: claims.sub,
+    email: String(claims.email ?? ''),
+    username: meta.username ?? '',
+    deviceId: String(claims.session_id ?? '')
   };
 }

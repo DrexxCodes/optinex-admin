@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
+import { rpcMessage } from '@/lib/db/format';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -13,35 +13,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }
 
-  const withdrawalRef = adminDb.collection('withdrawals').doc(id);
-  const snap = await withdrawalRef.get();
-  if (!snap.exists) return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
-  const withdrawal = snap.data()!;
-  if (withdrawal.status !== 'pending') return NextResponse.json({ error: 'This request has already been resolved.' }, { status: 400 });
+  // approve: the wallet was already debited when the request was made — the payout itself happens
+  // externally (bank transfer), so approving just marks it settled ('paid').
+  // reject: marks it failed, refunds the wallet and records the credit — all atomically.
+  const { error } = await supabaseAdmin.rpc('resolve_withdrawal', { p_id: id, p_action: action });
 
-  const userRef = adminDb.collection('users').doc(withdrawal.uid);
-  const batch = adminDb.batch();
-
-  if (action === 'approve') {
-    // The wallet amount was already debited when the request was made — the
-    // payout itself happens externally (bank transfer using payoutMethod),
-    // so approving here just marks it settled.
-    batch.set(withdrawalRef, { status: 'paid' }, { merge: true });
-  } else {
-    // Reversing a rejected withdrawal: refund the wallet and record it as a
-    // credit so it shows up in the user's activity feed.
-    batch.set(withdrawalRef, { status: 'failed' }, { merge: true });
-    batch.set(userRef, { walletAmount: FieldValue.increment(withdrawal.amount) }, { merge: true });
-    batch.set(userRef.collection('walletTransactions').doc(), {
-      txnType: 'credit',
-      txnName: 'Withdrawal reversed',
-      amount: withdrawal.amount,
-      txnRef: withdrawal.reference,
-      timestamp: FieldValue.serverTimestamp()
-    });
+  if (error) {
+    const msg = rpcMessage(error);
+    if (msg === 'NOT_FOUND') return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
+    if (msg === 'RESOLVED') return NextResponse.json({ error: 'This request has already been resolved.' }, { status: 400 });
+    console.error('[admin/withdrawals resolve]', error);
+    return NextResponse.json({ error: 'Could not resolve this request.' }, { status: 500 });
   }
-
-  await batch.commit();
 
   return NextResponse.json({ ok: true });
 }

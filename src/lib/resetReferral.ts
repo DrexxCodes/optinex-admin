@@ -1,54 +1,14 @@
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { redis, REFERRAL_LEADERBOARD_KEY, REFERRAL_WEEKLY_LEADERBOARD_KEY, REFERRAL_LEADERBOARD_NAMES_KEY } from '@/lib/redis';
 
-// Resets referral stats for every user: clears the `referredBy` link (so
-// nobody shows up as "referred" anymore, zeroing everyone's connection
-// count), zeroes `referralEarnings`, `weeklyReferrals`, and `allTimeReferrals`,
-// and wipes both Redis referral leaderboards (all-time + weekly) plus the name
-// cache. Deliberately does NOT touch `walletAmount` — referral bonuses already
-// paid into a user's wallet are real money that has already moved; this
-// resets the *stats*, not past payouts.
+// Resets referral stats for every user: clears the `referred_by` link (so nobody shows up as
+// "referred" anymore, zeroing everyone's connection count), zeroes `referral_earnings`,
+// `weekly_referrals`, and `all_time_referrals`, and wipes both Redis referral leaderboards
+// (all-time + weekly) plus the name cache. Deliberately does NOT touch `wallet_amount` — referral
+// bonuses already paid are real money that has already moved; this resets the *stats*, not payouts.
 export async function resetReferralStats(): Promise<{ clearedLinks: number; clearedEarnings: number }> {
-  const usersRef = adminDb.collection('users');
-
-  const [referredSnap, earnersSnap, weeklySnap, allTimeSnap] = await Promise.all([
-    usersRef.where('referredBy', '!=', null).get(),
-    usersRef.where('referralEarnings', '>', 0).get(),
-    usersRef.where('weeklyReferrals', '>', 0).get(),
-    usersRef.where('allTimeReferrals', '>', 0).get()
-  ]);
-
-  for (let i = 0; i < referredSnap.docs.length; i += 500) {
-    const batch = adminDb.batch();
-    for (const doc of referredSnap.docs.slice(i, i + 500)) {
-      batch.set(doc.ref, { referredBy: null }, { merge: true });
-    }
-    await batch.commit();
-  }
-
-  for (let i = 0; i < earnersSnap.docs.length; i += 500) {
-    const batch = adminDb.batch();
-    for (const doc of earnersSnap.docs.slice(i, i + 500)) {
-      batch.set(doc.ref, { referralEarnings: 0 }, { merge: true });
-    }
-    await batch.commit();
-  }
-
-  for (let i = 0; i < weeklySnap.docs.length; i += 500) {
-    const batch = adminDb.batch();
-    for (const doc of weeklySnap.docs.slice(i, i + 500)) {
-      batch.set(doc.ref, { weeklyReferrals: 0 }, { merge: true });
-    }
-    await batch.commit();
-  }
-
-  for (let i = 0; i < allTimeSnap.docs.length; i += 500) {
-    const batch = adminDb.batch();
-    for (const doc of allTimeSnap.docs.slice(i, i + 500)) {
-      batch.set(doc.ref, { allTimeReferrals: 0 }, { merge: true });
-    }
-    await batch.commit();
-  }
+  const { data, error } = await supabaseAdmin.rpc('reset_referral_stats');
+  if (error) throw new Error(error.message);
 
   await Promise.all([
     redis.del(REFERRAL_LEADERBOARD_KEY),
@@ -56,5 +16,5 @@ export async function resetReferralStats(): Promise<{ clearedLinks: number; clea
     redis.del(REFERRAL_LEADERBOARD_NAMES_KEY)
   ]);
 
-  return { clearedLinks: referredSnap.size, clearedEarnings: earnersSnap.size };
+  return { clearedLinks: data?.clearedLinks ?? 0, clearedEarnings: data?.clearedEarnings ?? 0 };
 }

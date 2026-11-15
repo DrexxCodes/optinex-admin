@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
+import { getConfig, mergeConfig } from '@/lib/db/config';
 
 export async function GET() {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
-  const snap = await adminDb.collection('config').doc('upgrade').get();
-  return NextResponse.json(snap.exists ? snap.data() : { price: null, bankName: '', accountNumber: '', accountName: '' });
+  const data = await getConfig('upgrade');
+  return NextResponse.json(data ?? { price: null, bankName: '', accountNumber: '', accountName: '' });
 }
 
 export async function PUT(req: NextRequest) {
@@ -20,6 +20,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Bank name, account number, and account name are all required.' }, { status: 400 });
   }
 
-  await adminDb.collection('config').doc('upgrade').set({ price, bankName, accountNumber, accountName }, { merge: true });
+  await mergeConfig('upgrade', { price, bankName, accountNumber, accountName });
   return NextResponse.json({ ok: true });
 }

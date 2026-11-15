@@ -1,23 +1,18 @@
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase/admin';
+import { getConfig, mergeConfig } from '@/lib/db/config';
 import { CASINO_GAME_IDS, type CasinoGameId } from '@/lib/redis';
-
-const resetLogRef = adminDb.collection('system').doc('resetLog');
 
 export type ResetLogCategory = 'financial' | 'checkin' | 'signup' | 'referral' | 'withdrawals' | 'nuke';
 
-// Records "this got reset just now". Uses a real nested object for the
-// per-game case (`{ game: { [gameId]: now } }`) rather than a dotted string
-// key like `'game.brick-slasher'` — Firestore's set-merge only nests real
-// object literals; a dotted *string* key is stored as one literal field
-// named "game.brick-slasher" instead of a nested map. (This exact mismatch
-// is also what broke the Overview signup chart — see api/admin/overview.)
+type StoredLog = Partial<Record<ResetLogCategory, string>> & { game?: Partial<Record<CasinoGameId | 'all', string>> };
+
+// Records "this got reset just now" in the `resetLog` config row (ISO timestamps).
 export async function recordReset(category: ResetLogCategory) {
-  await resetLogRef.set({ [category]: FieldValue.serverTimestamp() }, { merge: true });
+  await mergeConfig('resetLog', { [category]: new Date().toISOString() });
 }
 
 export async function recordGameReset(gameId: CasinoGameId | 'all') {
-  await resetLogRef.set({ game: { [gameId]: FieldValue.serverTimestamp() } }, { merge: true });
+  const existing = (await getConfig<StoredLog>('resetLog'))?.game ?? {};
+  await mergeConfig('resetLog', { game: { ...existing, [gameId]: new Date().toISOString() } });
 }
 
 export type ResetLog = {
@@ -31,12 +26,8 @@ export type ResetLog = {
 };
 
 export async function getResetLog(): Promise<ResetLog> {
-  const snap = await resetLogRef.get();
-  const data = snap.exists ? snap.data()! : {};
-  const toIso = (v: unknown): string | null => {
-    const ts = v as { toDate?: () => Date } | undefined;
-    return ts?.toDate?.()?.toISOString?.() ?? null;
-  };
+  const data = (await getConfig<StoredLog>('resetLog')) ?? {};
+  const toIso = (v: unknown): string | null => (typeof v === 'string' && v ? new Date(v).toISOString() : null);
 
   const game = {} as Record<CasinoGameId | 'all', string | null>;
   for (const id of [...CASINO_GAME_IDS, 'all' as const]) {

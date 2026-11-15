@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getSessionUser } from '@/lib/auth/session';
 
+// Used by /welcome to confirm admin access. Accounts are NO LONGER promoted here: an account is
+// an admin only if `profiles.is_admin` was set in the database (or by an existing admin via the
+// Users page). Everyone else gets a 403.
 export async function POST() {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: 'Unauthenticated.' }, { status: 401 });
 
-  const userRef = adminDb.collection('users').doc(session.uid);
-  const snap = await userRef.get();
-  if (!snap.exists) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+  const { data } = await supabaseAdmin.from('profiles').select('full_name, is_admin').eq('id', session.uid).maybeSingle();
+  if (!data) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
 
-  const alreadyAdmin = snap.data()?.admin === true;
-  if (!alreadyAdmin) await userRef.set({ admin: true }, { merge: true });
+  if (data.is_admin !== true) {
+    return NextResponse.json({ error: 'This account does not have admin access.' }, { status: 403 });
+  }
 
-  return NextResponse.json({ ok: true, fullName: snap.data()?.fullName ?? '', wasAlreadyAdmin: alreadyAdmin });
+  return NextResponse.json({ ok: true, fullName: data.full_name ?? '', wasAlreadyAdmin: true });
 }

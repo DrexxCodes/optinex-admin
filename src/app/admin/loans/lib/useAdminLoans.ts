@@ -13,6 +13,10 @@ export type AdminLoan = {
   status: LoanStage;
   reference: string;
   bankAccount: { accountNumber: string; bankCode: string; bankName: string; accountName: string };
+  reason: string | null;
+  // Older applications (before these fields existed) have none of these.
+  applicant: { fullName: string; email: string; phone: string; address: string; occupation: string } | null;
+  nextOfKin: { name: string; phone: string } | null;
   createdAt: string | null;
   statusChangedAt: string | null;
 };

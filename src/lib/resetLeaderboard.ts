@@ -1,11 +1,9 @@
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { UUID_RE } from '@/lib/db/format';
 import { redis, gameLeaderboardKey, gameLeaderboardNamesKey, CASINO_GAME_IDS, type CasinoGameId } from '@/lib/redis';
 
-// Wipes one game's leaderboard (sorted set + username cache) and zeroes that
-// game's high score on every player who had one. `casinoHighScores` is a
-// nested map (`{ [gameId]: score }`) on each user doc — written as a real
-// nested object, not a dotted-string key, so Firestore's set-merge actually
-// nests it instead of creating a literal field named e.g. "casinoHighScores.brick-slasher".
+// Wipes one game's leaderboard (sorted set + username cache) and zeroes that game's high score on
+// every player who had one (`profiles.casino_high_scores` is a jsonb map of `{ [gameId]: score }`).
 export async function resetLeaderboard(gameId: CasinoGameId): Promise<{ clearedCount: number }> {
   const leaderboardKey = gameLeaderboardKey(gameId);
   const namesKey = gameLeaderboardNamesKey(gameId);
@@ -14,20 +12,16 @@ export async function resetLeaderboard(gameId: CasinoGameId): Promise<{ clearedC
 
   await Promise.all([redis.del(leaderboardKey), redis.del(namesKey)]);
 
-  if (uids.length) {
-    for (let i = 0; i < uids.length; i += 500) {
-      const batch = adminDb.batch();
-      for (const uid of uids.slice(i, i + 500)) {
-        batch.set(adminDb.collection('users').doc(String(uid)), { casinoHighScores: { [gameId]: 0 } }, { merge: true });
-      }
-      await batch.commit();
-    }
+  const ids = uids.map(String).filter((id) => UUID_RE.test(id));
+  if (ids.length) {
+    const { error } = await supabaseAdmin.rpc('reset_game_scores', { p_game: gameId, p_ids: ids });
+    if (error) throw new Error(error.message);
   }
 
   return { clearedCount: uids.length };
 }
 
-// Wipes every game's leaderboard. Returns the total scores cleared across all 4.
+// Wipes every game's leaderboard. Returns the total scores cleared across all games.
 export async function resetAllLeaderboards(): Promise<{ clearedCount: number }> {
   let total = 0;
   for (const gameId of CASINO_GAME_IDS) {

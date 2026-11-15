@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase/admin';
-import { signAccessToken } from '@/lib/auth/jwt';
-import { accessCookieOptions, refreshCookieOptions, ACCESS_COOKIE, REFRESH_COOKIE } from '@/lib/auth/session';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logAnalyticsEvent } from '@/lib/analytics';
 
+// Admin sign-in runs server-side (low volume, and it keeps the admin login page unchanged).
+// Supabase Auth checks the password and writes the session cookies onto this response.
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
@@ -14,48 +12,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
     }
 
-    // we have to normalize the email to lowercase in case the user decides to use uppercase letters in their email address. This is a common practice to ensure consistency and avoid issues with case sensitivity.
+    // Normalize the email so upper-case input can't cause case-sensitivity mismatches.
     const normalizedEmail = String(email).trim().toLowerCase();
-    const snap = await adminDb.collection('users').where('email', '==', normalizedEmail).limit(1).get();
 
-    // If something returns empty
-    if (snap.empty) {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
+    if (error || !data.user) {
+      if (error?.status === 429) {
+        return NextResponse.json({ error: 'Too many attempts. Please wait a moment and try again.' }, { status: 429 });
+      }
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
-    const userDoc = snap.docs[0];
-    const user = userDoc.data();
-    const passwordOk = await bcrypt.compare(password, user.passwordHash);
-
-    if (!passwordOk) {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, full_name, email, username')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (!profile) {
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
-    const deviceId = randomBytes(8).toString('hex');
-    const refreshToken = randomBytes(48).toString('hex');
-    const refreshHash = await bcrypt.hash(refreshToken, 10);
+    await logAnalyticsEvent('signin').catch((e) => console.error('[signin] analytics', e));
 
-    await userDoc.ref.collection('refreshTokens').doc(deviceId).set({
-      hash: refreshHash,
-      createdAt: FieldValue.serverTimestamp(),
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
+    return NextResponse.json({
+      user: { uid: profile.id, fullName: profile.full_name, email: profile.email, username: profile.username }
     });
-
-    const accessToken = await signAccessToken({
-      uid: userDoc.id,
-      email: user.email,
-      username: user.username,
-      deviceId
-    });
-
-    await logAnalyticsEvent('signin');
-
-    const res = NextResponse.json({
-      user: { uid: userDoc.id, fullName: user.fullName, email: user.email, username: user.username }
-    });
-    res.cookies.set(ACCESS_COOKIE, accessToken, accessCookieOptions());
-    res.cookies.set(REFRESH_COOKIE, `${userDoc.id}.${deviceId}.${refreshToken}`, refreshCookieOptions());
-    return res;
   } catch (err) {
     console.error('[signin]', err);
     return NextResponse.json({ error: 'Something went wrong signing you in.' }, { status: 500 });

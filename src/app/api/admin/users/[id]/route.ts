@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
+import { UUID_RE } from '@/lib/db/format';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -13,7 +14,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (id === admin.uid && !makeAdmin) {
     return NextResponse.json({ error: "You can't remove your own admin access." }, { status: 400 });
   }
+  if (!UUID_RE.test(id)) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
 
-  await adminDb.collection('users').doc(id).set({ admin: makeAdmin }, { merge: true });
+  const { data, error } = await supabaseAdmin.from('profiles').update({ is_admin: makeAdmin }).eq('id', id).select('id');
+  if (error) return NextResponse.json({ error: 'Could not update this user.' }, { status: 500 });
+  if (!data?.length) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+
   return NextResponse.json({ ok: true });
 }

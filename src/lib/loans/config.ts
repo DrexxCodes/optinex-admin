@@ -43,7 +43,7 @@ export type LoanTimelineStep = {
   by: LoanActor | null;
 };
 
-type RawEntry = { status?: string; at?: { toDate?: () => Date } | null; by?: LoanActor };
+type RawEntry = { status?: string; at?: string | null; by?: LoanActor };
 
 // Turns the immutable entries in `loans/{id}/timeline` into the full four-step
 // view: reached stages carry their timestamp, remaining stages are null.
@@ -58,7 +58,7 @@ export function buildLoanTimeline(entries: RawEntry[]): LoanTimelineStep[] {
     return {
       status,
       label: LOAN_STAGE_LABELS[status],
-      reachedAt: entry?.at?.toDate?.()?.toISOString?.() ?? null,
+      reachedAt: entry?.at ? new Date(entry.at).toISOString() : null,
       by: entry?.by ?? null
     };
   });

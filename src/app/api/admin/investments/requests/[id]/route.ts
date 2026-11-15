@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
 import { logAnalyticsEvent } from '@/lib/analytics';
-
-function parseDurationToMs(duration: string): number {
-  // The `duration` field on a package is free text (e.g. "30 days", "30",
-  // "30d") but the number in it always means days — there's no separate
-  // months/years convention in this app. Pull out the first number we find
-  // and treat it as a day count, instead of requiring a matching unit word
-  // (the old regex silently fell back to a hardcoded 30 days whenever the
-  // admin typed the duration without a "day/month/year" suffix, which
-  // quietly gave every such package the wrong expiry).
-  const match = duration.match(/\d+/);
-  const days = match ? parseInt(match[0], 10) : 30; // default 30 days if nothing parseable
-  return days * 24 * 60 * 60 * 1000;
-}
+import { rpcMessage } from '@/lib/db/format';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -26,44 +14,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }
 
-  const invRef = adminDb.collection('investments').doc(id);
-  const snap = await invRef.get();
-  if (!snap.exists) return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
-  const investment = snap.data()!;
-  if (investment.status !== 'pending') return NextResponse.json({ error: 'This request has already been resolved.' }, { status: 400 });
+  // Everything happens in one atomic Postgres function (row locked): the status flip and — on
+  // approve — the user's package fields. The package `duration` is free text (e.g. "30 days",
+  // "30", "30d"); the first number in it is always a day count (default 30), exactly as before.
+  const { data: amount, error } = await supabaseAdmin.rpc('resolve_investment', { p_id: id, p_action: action });
 
-  const packageSnap = await adminDb.collection('packages').doc(investment.packageId).get();
-  if (!packageSnap.exists) return NextResponse.json({ error: 'Package not found.' }, { status: 404 });
-  const pkg = packageSnap.data()!;
-
-  const userRef = adminDb.collection('users').doc(investment.uid);
-  const batch = adminDb.batch();
-
-  if (action === 'approve') {
-    batch.set(invRef, { status: 'active' }, { merge: true });
-
-    // Calculate expiry date based on package duration
-    const durationMs = parseDurationToMs(pkg.duration);
-    const expiresAt = Date.now() + durationMs;
-
-    const updateData: Record<string, unknown> = {
-      packageStatus: investment.packageName,
-      packageId: investment.packageId,
-      packageName: investment.packageName,
-      packageStartedAt: Date.now(),
-      packageExpiresAt: expiresAt,
-      isChangingPackage: false
-    };
-
-    batch.set(userRef, updateData, { merge: true });
-  } else {
-    batch.set(invRef, { status: 'failed' }, { merge: true });
-    batch.set(userRef, { packageStatus: 'Free', isChangingPackage: false }, { merge: true });
+  if (error) {
+    const msg = rpcMessage(error);
+    if (msg === 'NOT_FOUND') return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
+    if (msg === 'RESOLVED') return NextResponse.json({ error: 'This request has already been resolved.' }, { status: 400 });
+    if (msg === 'PACKAGE_NOT_FOUND') return NextResponse.json({ error: 'Package not found.' }, { status: 404 });
+    console.error('[admin/investments resolve]', error);
+    return NextResponse.json({ error: 'Could not resolve this request.' }, { status: 500 });
   }
 
-  await batch.commit();
-
-  if (action === 'approve') await logAnalyticsEvent('investment_verified', investment.amount ?? 0);
+  if (action === 'approve') {
+    await logAnalyticsEvent('investment_verified', Number(amount ?? 0)).catch((e) => console.error('[admin/investments] analytics', e));
+  }
 
   return NextResponse.json({ ok: true });
 }

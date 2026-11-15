@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
 import { logAnalyticsEvent } from '@/lib/analytics';
+import { rpcMessage } from '@/lib/db/format';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -13,26 +14,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
   }
 
-  const upgradeRef = adminDb.collection('accountUpgrades').doc(id);
-  const snap = await upgradeRef.get();
-  if (!snap.exists) return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
-  const upgrade = snap.data()!;
-  if (upgrade.status !== 'pending') return NextResponse.json({ error: 'This request has already been resolved.' }, { status: 400 });
+  // Request row + the user's tier/status flip in one atomic call (row locked; double-resolves rejected).
+  const { data: amount, error } = await supabaseAdmin.rpc('resolve_upgrade', { p_id: id, p_action: action });
 
-  const userRef = adminDb.collection('users').doc(upgrade.uid);
-  const batch = adminDb.batch();
-
-  if (action === 'approve') {
-    batch.set(upgradeRef, { status: 'active' }, { merge: true });
-    batch.set(userRef, { accountTier: 'upgraded', upgradeStatus: 'active' }, { merge: true });
-  } else {
-    batch.set(upgradeRef, { status: 'failed' }, { merge: true });
-    batch.set(userRef, { upgradeStatus: 'none' }, { merge: true });
+  if (error) {
+    const msg = rpcMessage(error);
+    if (msg === 'NOT_FOUND') return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
+    if (msg === 'RESOLVED') return NextResponse.json({ error: 'This request has already been resolved.' }, { status: 400 });
+    console.error('[admin/upgrade resolve]', error);
+    return NextResponse.json({ error: 'Could not resolve this request.' }, { status: 500 });
   }
 
-  await batch.commit();
-
-  if (action === 'approve') await logAnalyticsEvent('account_upgrade_verified', upgrade.amount ?? 0);
+  if (action === 'approve') {
+    await logAnalyticsEvent('account_upgrade_verified', Number(amount ?? 0)).catch((e) => console.error('[admin/upgrade] analytics', e));
+  }
 
   return NextResponse.json({ ok: true });
 }

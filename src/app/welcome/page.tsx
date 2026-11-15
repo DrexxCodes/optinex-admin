@@ -7,13 +7,17 @@ import { PartyPopper, ArrowRight } from 'lucide-react';
 export default function WelcomePage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'denied' | 'error'>('loading');
 
   useEffect(() => {
     fetch('/api/auth/claim-admin', { method: 'POST', credentials: 'include' })
       .then(async (res) => {
         if (res.status === 401) {
           router.push('/login');
+          return;
+        }
+        if (res.status === 403) {
+          setStatus('denied');
           return;
         }
         if (!res.ok) {
@@ -31,6 +35,10 @@ export default function WelcomePage() {
     <div className="flex min-h-dvh items-center justify-center bg-[#0B1120] px-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl">
         {status === 'loading' && <p className="py-8 text-sm text-ink/50">Setting things up…</p>}
+
+        {status === 'denied' && (
+          <p className="py-8 text-sm text-red-500">This account doesn&apos;t have admin access. Ask an existing admin to enable it for you.</p>
+        )}
 
         {status === 'error' && <p className="py-8 text-sm text-red-500">Something went wrong. Try refreshing the page.</p>}
 

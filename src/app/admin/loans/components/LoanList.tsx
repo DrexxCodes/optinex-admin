@@ -43,6 +43,15 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+function Detail({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className={wide ? 'sm:col-span-2' : undefined}>
+      <dt className="font-semibold uppercase tracking-wide text-ink/40">{label}</dt>
+      <dd className="mt-0.5 whitespace-pre-wrap break-words text-sm text-ink/80">{children}</dd>
+    </div>
+  );
+}
+
 function LoanRow({
   loan,
   loadTimeline,
@@ -119,10 +128,29 @@ function LoanRow({
 
       {open && (
         <div className="border-t border-ink/5 px-4 pb-5 pt-4">
-          <div className="mb-4 flex items-center gap-1 text-xs text-ink/50">
-            Account number: <span className="font-semibold text-ink/70">{loan.bankAccount.accountNumber}</span>
-            <CopyButton value={loan.bankAccount.accountNumber} />
-          </div>
+          <dl className="mb-5 grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">
+            <Detail label="Account number">
+              <span className="inline-flex items-center gap-1">
+                {loan.bankAccount.accountNumber}
+                <CopyButton value={loan.bankAccount.accountNumber} />
+              </span>
+            </Detail>
+            {loan.applicant && (
+              <>
+                <Detail label="Email">{loan.applicant.email}</Detail>
+                <Detail label="Phone">{loan.applicant.phone}</Detail>
+                <Detail label="Occupation">{loan.applicant.occupation}</Detail>
+                <Detail label="Address" wide>{loan.applicant.address}</Detail>
+              </>
+            )}
+            {loan.nextOfKin && (
+              <>
+                <Detail label="Next of kin">{loan.nextOfKin.name}</Detail>
+                <Detail label="Next of kin phone">{loan.nextOfKin.phone}</Detail>
+              </>
+            )}
+            {loan.reason && <Detail label="Reason for loan" wide>{loan.reason}</Detail>}
+          </dl>
           {timeline ? <LoanTimeline steps={timeline} /> : <div className="h-24 animate-pulse rounded-xl bg-ink/5" />}
         </div>
       )}

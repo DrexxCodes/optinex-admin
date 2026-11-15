@@ -1,31 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase/admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/auth/adminGuard';
-import { buildLoanTimeline, isLoanStage, nextLoanStage, LOAN_STAGES } from '@/lib/loans/config';
+import { buildLoanTimeline, isLoanStage, nextLoanStage } from '@/lib/loans/config';
+import { rpcMessage } from '@/lib/db/format';
 
-// Full timeline for one application (the list endpoint stays light by not
-// reading every application's timeline subcollection).
+// Full timeline for one application (the list endpoint stays light by not reading every
+// application's timeline).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
   const { id } = await params;
-  const loanRef = adminDb.collection('loans').doc(id);
-  const [loanSnap, timelineSnap] = await Promise.all([loanRef.get(), loanRef.collection('timeline').get()]);
-  if (!loanSnap.exists) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+  const { data: loan } = await supabaseAdmin
+    .from('loans')
+    .select('status, loan_timeline(status, at, by)')
+    .eq('id', id)
+    .maybeSingle();
+  if (!loan) return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
 
   return NextResponse.json({
     id,
-    status: loanSnap.data()!.status,
-    timeline: buildLoanTimeline(timelineSnap.docs.map((d) => d.data()))
+    status: loan.status,
+    timeline: buildLoanTimeline((loan as any).loan_timeline ?? [])
   });
 }
 
-// Moves an application exactly one step forward. The caller states the stage
-// it believes the application is in (`from`) and the stage it wants (`to`);
-// both are checked against the live document inside a transaction, so a
-// double-click or two admins acting at once can never skip a stage.
+// Moves an application exactly one step forward. The caller states the stage it believes the
+// application is in (`from`) and the stage it wants (`to`); both are checked against the live row
+// inside a Postgres function (row locked), so a double-click or two admins acting at once can
+// never skip a stage.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
@@ -36,40 +39,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Applications can only move one step forward.' }, { status: 400 });
   }
 
-  const loanRef = adminDb.collection('loans').doc(id);
+  const { error } = await supabaseAdmin.rpc('advance_loan', { p_id: id, p_from: from, p_to: to, p_admin: admin.uid });
 
-  try {
-    await adminDb.runTransaction(async (tx) => {
-      const snap = await tx.get(loanRef);
-      if (!snap.exists) throw new Error('NOT_FOUND');
-      const loan = snap.data()!;
-      if (loan.status !== from) throw new Error('STALE');
-
-      tx.update(loanRef, { status: to, statusChangedAt: FieldValue.serverTimestamp() });
-
-      // Immutable timeline entry: doc id == stage and written with create(),
-      // so it fails if that stage was somehow already recorded. Nothing in
-      // either app ever updates or deletes these documents.
-      tx.create(loanRef.collection('timeline').doc(to), {
-        status: to,
-        seq: LOAN_STAGES.indexOf(to),
-        by: 'admin',
-        actorUid: admin.uid,
-        at: FieldValue.serverTimestamp()
-      });
-
-      // Leaving "pending" frees the user to apply again (see the
-      // `pendingLoanId` lock in the user app's /api/loans/apply).
-      if (from === 'pending') {
-        tx.set(adminDb.collection('users').doc(loan.uid), { pendingLoanId: FieldValue.delete() }, { merge: true });
-      }
-    });
-  } catch (err: any) {
-    if (err?.message === 'NOT_FOUND') return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
-    if (err?.message === 'STALE') {
+  if (error) {
+    const msg = rpcMessage(error);
+    if (msg === 'NOT_FOUND') return NextResponse.json({ error: 'Application not found.' }, { status: 404 });
+    if (msg === 'STALE') {
       return NextResponse.json({ error: 'This application has already moved on. Refresh to see its latest status.' }, { status: 409 });
     }
-    console.error('[admin/loans PATCH]', err);
+    console.error('[admin/loans PATCH]', error);
     return NextResponse.json({ error: 'Could not update this application.' }, { status: 500 });
   }
 
