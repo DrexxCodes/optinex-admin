@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { RotateCcw } from 'lucide-react';
 import { useAdminLeaderboard } from './lib/useAdminLeaderboard';
 import { CASINO_GAMES } from './lib/games';
-import type { CasinoGameId } from '@/lib/redis';
+import type { CasinoGameId } from '@/lib/casino';
 import LeaderboardGameTabs from './components/LeaderboardGameTabs';
 import LeaderboardTable from './components/LeaderboardTable';
 

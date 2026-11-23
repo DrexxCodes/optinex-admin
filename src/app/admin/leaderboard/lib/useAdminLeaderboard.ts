@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { authFetch } from '@/lib/auth/authClient';
-import type { CasinoGameId } from '@/lib/redis';
+import type { CasinoGameId } from '@/lib/casino';
 
 export type LeaderboardEntry = { rank: number; uid: string; username: string; score: number };
 

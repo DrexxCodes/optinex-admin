@@ -1,16 +1,14 @@
 import { redirect } from 'next/navigation';
-import { supabaseAdmin } from '@/lib/supabase/admin';
-import { getSessionUser } from '@/lib/auth/session';
+import { getServerSession } from '@/lib/auth/session';
 import AdminShell from './components/AdminShell';
 
-// Server Component gate: real authorization for /admin lives here (and is re-checked
-// independently by every /api/admin/* route). The client-side nav/shell is purely presentational.
+// Server Component gate for /admin (UX + defense in depth): the backend verifies the session and the live
+// `is_admin` flag. Every /api/admin/* request is independently re-checked by the backend, so this layout is
+// never the only line of defense. The client-side nav/shell is purely presentational.
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSessionUser();
+  const session = await getServerSession();
   if (!session) redirect('/login');
-
-  const { data } = await supabaseAdmin.from('profiles').select('is_admin').eq('id', session.uid).maybeSingle();
-  if (!data || data.is_admin !== true) redirect('/welcome');
+  if (!session.admin) redirect('/welcome');
 
   return <AdminShell>{children}</AdminShell>;
 }

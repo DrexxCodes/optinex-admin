@@ -1,7 +1,7 @@
 'use client';
 
 import { CASINO_GAMES } from '../lib/games';
-import type { CasinoGameId } from '@/lib/redis';
+import type { CasinoGameId } from '@/lib/casino';
 
 export default function LeaderboardGameTabs({ active, onChange }: { active: CasinoGameId; onChange: (id: CasinoGameId) => void }) {
   return (

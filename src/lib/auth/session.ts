@@ -1,29 +1,24 @@
-// Server-side session helper. `getSessionUser()` is the single source of truth for
-// "who is logged in" on the server — never trust client state. The session itself is a
-// Supabase Auth session; its JWT is verified locally (no network call) via getClaims().
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+// Server-component session lookup. The admin app has no database or auth-provider access: it forwards the
+// visitor's httpOnly cookies to optinex-backend, which verifies the session and reports whether the account is
+// an admin (`profiles.is_admin`, checked live). One call replaces the old session-read + profile-read pair.
+import { cookies } from 'next/headers';
+import { BACKEND_URL } from '@/lib/api/backend';
 
-export type SessionUser = {
-  uid: string;
-  email: string;
-  username: string;
-  deviceId: string;
-};
+export type ServerSession = { uid: string; email: string; admin: boolean };
 
-// Kept so existing imports of the old JWT payload type keep compiling.
-export type AccessTokenPayload = SessionUser;
+export async function getServerSession(): Promise<ServerSession | null> {
+  const cookieHeader = (await cookies()).toString();
+  if (!cookieHeader) return null;
 
-export async function getSessionUser(): Promise<SessionUser | null> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getClaims();
-  const claims = data?.claims;
-  if (error || !claims?.sub) return null;
-
-  const meta = (claims.user_metadata ?? {}) as { username?: string };
-  return {
-    uid: claims.sub,
-    email: String(claims.email ?? ''),
-    username: meta.username ?? '',
-    deviceId: String(claims.session_id ?? '')
-  };
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/session`, {
+      headers: { cookie: cookieHeader },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ServerSession;
+  } catch {
+    return null;
+  }
 }

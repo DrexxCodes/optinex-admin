@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { updateSession } from '@/lib/supabase/proxy';
+import { NextRequest } from 'next/server';
+import { updateSession } from '@/lib/auth/proxySession';
 
-// Server Components (`admin/layout.tsx`, `page.tsx`) read the Supabase Auth session directly. If
-// the 1-hour access token has expired, this proxy silently refreshes it (and re-issues the cookies)
-// first, so a still-valid session is never mistaken for a logged-out one on a fresh navigation.
+// Server Components (`admin/layout.tsx`, `page.tsx`) ask optinex-backend who the visitor is. If the 1-hour
+// access token has lapsed, this proxy first asks the backend to rotate it (and re-issues the cookies), so a
+// still-valid session is never mistaken for a logged-out one on a fresh navigation.
 export const config = {
   matcher: ['/', '/admin/:path*', '/welcome']
 };
@@ -11,5 +11,5 @@ export const config = {
 export async function proxy(req: NextRequest) {
   // No session at all → fall through and let the page-level check redirect to /login as before.
   const { response } = await updateSession(req);
-  return response ?? NextResponse.next();
+  return response;
 }

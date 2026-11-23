@@ -1,3 +1,22 @@
+# Changelog — API extracted to optinex-backend (admin app)
+
+## What changed
+- **No database or service code left in this app.** All 44 route handlers under `src/app/api/**` (`/api/admin/*` and `/api/auth/*`) were ported to the Fastify service `optinex-backend` at the same URLs. `next.config.js` rewrites `/api/auth/*` and `/api/admin/*` to `BACKEND_URL` (nothing else is forwarded), so every existing `authFetch('/api/admin/...')` call works unchanged and cookies stay same-origin.
+- **Server Components ask the backend who you are.** `src/app/admin/layout.tsx` and `src/app/page.tsx` used to read the Supabase session and query `profiles.is_admin` directly; they now call `getServerSession()` (`src/lib/auth/session.ts`), which forwards the httpOnly cookies to `GET /api/auth/session` and gets `{ uid, email, admin }` back in one round trip (previously two). Redirect behaviour is unchanged (`/login` → no session, `/welcome` → not admin).
+- **`src/proxy.ts`** now uses `src/lib/auth/proxySession.ts` (replaces `src/lib/supabase/proxy.ts`): if the access cookie lapsed it asks the backend to rotate it and re-issues the cookies; dead refresh token clears them; a backend outage keeps the session. Same code as the user app.
+- **Admin API authorization is stricter in one place:** an expired/missing session on `/api/admin/*` now returns **401** (was 403) so `authFetch`'s silent refresh-and-retry actually kicks in; signed-in non-admins still get **403**. The `is_admin` flag is still checked live on every request, now in one place (a single backend hook) instead of per route.
+- `src/lib/casino.ts` (new): the casino game-id type/list the leaderboard UI needs, previously imported from the Redis module (4 imports updated).
+
+## Removed
+- `src/app/api/**`, `src/lib/supabase/**`, `src/lib/db/**`, `src/lib/firebase/**`, `src/lib/redis.ts`, `src/lib/analytics.ts`, `src/lib/refGenerator.ts`, `src/lib/referralWeekly.ts`, `src/lib/reset{Analytics,Leaderboard,Log,Referral,Users,Withdrawals}.ts`, `src/lib/auth/adminGuard.ts` — all of this now lives in `optinex-backend`.
+- Dependencies: `@supabase/ssr`, `@supabase/supabase-js`, `@upstash/redis`, `firebase-admin`, `@dicebear/core`, `@dicebear/collection`.
+- Env: only `BACKEND_URL` remains (see `.env.example`). The previous `.env.example` also contained a real Supabase project URL and key — these are no longer needed here.
+
+## Verified
+`tsc --noEmit` and `next build` pass. Booted against the real backend: admin sign-in, `/` → `/admin` for admins and `/welcome` for non-admins, `/admin` guarded for anonymous and non-admin visitors, `/api/admin/*` works for admins and returns 403 for non-admins, user API is not reachable through the admin domain.
+
+---
+
 # Changelog — Firebase → Supabase migration (admin app)
 
 ## What changed

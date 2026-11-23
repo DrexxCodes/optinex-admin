@@ -1,6 +1,18 @@
+/**
+ * Every /api/* call is served by optinex-backend (Fastify). Only what this app uses is forwarded (/api/auth for
+ * sign-in/session, /api/admin for the dashboard), so the user-facing API is not reachable through this domain.
+ * Cookies set by the backend pass straight through, so they stay host-only on this app's domain.
+ */
+const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:4000').replace(/\/+$/, '');
+const API_GROUPS = ['auth', 'admin'];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    // `:path*` also matches the bare group root.
+    return API_GROUPS.map((group) => ({ source: `/api/${group}/:path*`, destination: `${BACKEND_URL}/api/${group}/:path*` }));
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'utfs.io' },
